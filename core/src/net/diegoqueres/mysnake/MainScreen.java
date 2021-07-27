@@ -61,7 +61,7 @@ public class MainScreen implements Screen {
             segurandoToque = true;
         } else if (!Gdx.input.isTouched() && segurandoToque) {
             segurandoToque = false;
-            // mudo de tela
+            game.setScreen(new GameScreen(game));
         }
     }
 
