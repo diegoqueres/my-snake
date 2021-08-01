@@ -37,6 +37,8 @@ public class MainScreen implements Screen {
 
         tempo = 0f;
         segurandoToque = false;
+
+        Gdx.input.setInputProcessor(null);
     }
 
     @Override

@@ -14,9 +14,16 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
 import net.diegoqueres.mysnake.enums.Direcao;
+import net.diegoqueres.mysnake.enums.Estado;
 
 import static net.diegoqueres.mysnake.Constants.IDX_CABECA_COBRA;
+import static net.diegoqueres.mysnake.Constants.TEMPO_ADICIONAR_COMIDA_INICIAL_PADRAO;
+import static net.diegoqueres.mysnake.Constants.TEMPO_ADICIONAR_COMIDA_PADRAO;
 import static net.diegoqueres.mysnake.Constants.TEMPO_MOVER_PADRAO;
+import static net.diegoqueres.mysnake.enums.Estado.*;
+import static net.diegoqueres.mysnake.enums.Estado.JOGANDO;
+
+import java.util.Random;
 
 public class GameScreen implements Screen, GestureDetector.GestureListener {
 
@@ -27,7 +34,7 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
 
     private Texture texCorpo;
     private Texture texFundo;
-    private Texture texPonto;
+    private Texture texComida;
 
     private boolean[][] corpo;
     private Array<Vector2> partes;
@@ -36,6 +43,12 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
     private float tempoParaMover;
 
     private Vector2 toque;
+
+    private Array<Vector2> comidas;
+    private float tempoParaAdicionarComida;
+
+    private Random rand;
+    private Estado estado;
 
 
     public GameScreen(Game game) {
@@ -53,6 +66,7 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
         init();
 
         toque = new Vector2();
+        rand = new Random();
 
         Gdx.input.setInputProcessor(new GestureDetector(this));
     }
@@ -67,17 +81,29 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
         batch.begin();
 
         batch.draw(texFundo, 0, 0, 100, 100);
+
         for (Vector2 parte : partes)
             batch.draw(texCorpo, parte.x * 5, parte.y * 5, 5, 5);
+
+        for (Vector2 comida : comidas)
+            batch.draw(texComida, comida.x * 5, comida.y * 5, 5, 5);
 
         batch.end();
     }
 
     private void update(float delta) {
-        tempoParaMover -= delta;
-
-        if (tempoParaMover > 0)
+        if (estado != JOGANDO)
             return;
+
+        tempoParaMover -= delta;
+        tempoParaAdicionarComida -= delta;
+
+        updateMovimentacaoCobra(delta);
+        updateAdicionarComida(delta);
+    }
+
+    private void updateMovimentacaoCobra(float delta) {
+        if (tempoParaMover > 0) return;
 
         tempoParaMover = TEMPO_MOVER_PADRAO;
         Gdx.app.log("Log", "move");
@@ -107,8 +133,18 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
         }
 
         if (isMovimentacaoInvalida(x1, y1)) {
-            // perdeu
+            estado = PERDEU;
             return;
+        }
+
+        for (int j = 0; j < comidas.size; j++) {
+            if (comidas.get(j).x == x1 && comidas.get(j).y == y1) {
+                comidas.removeIndex(j);
+                partes.insert(0, new Vector2(x1, y1));
+                corpo[x1][y1] = true;
+                corpo[x2][y2] = true;
+                return;
+            }
         }
 
         partes.get(IDX_CABECA_COBRA).set(x1, y1);
@@ -128,6 +164,19 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
         }
     }
 
+    private void updateAdicionarComida(float delta) {
+        if (tempoParaAdicionarComida > 0) return;
+
+        int x = rand.nextInt(20);
+        int y = rand.nextInt(20);
+        if (!corpo[x][y]) {
+            comidas.add(new Vector2(x, y));
+            tempoParaAdicionarComida = TEMPO_ADICIONAR_COMIDA_PADRAO;
+            Gdx.app.log("Log", "Adicionou comida");
+        }
+
+    }
+
     private boolean isMovimentacaoInvalida(int x, int y) {
         return (x < 0 || y < 0 || x > 19 || y > 19 || corpo[x][y]);
     }
@@ -137,30 +186,6 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
         viewport.update(width, height, true);
     }
 
-    @Override
-    public boolean fling(float velocityX, float velocityY, int button) {
-        toque.set(velocityX, velocityY);
-        viewport.unproject(toque);
-        Gdx.app.log("Log", velocityX + " " + velocityY + " " + toque.x + " " + toque.y);
-
-        if (Math.abs(toque.x) > Math.abs(toque.y))
-            toque.y = 0;
-        else
-            toque.x = 0;
-
-        final int minVelocity = 50;
-        if (toque.x > minVelocity && direcao != Direcao.ESQUERDA) {
-            direcao = Direcao.DIREITA;
-        } else if (toque.y > minVelocity && direcao != Direcao.BAIXO) {
-            direcao = Direcao.CIMA;
-        } else if (toque.x < -minVelocity && direcao != Direcao.DIREITA) {
-            direcao = Direcao.ESQUERDA;
-        } else if (toque.y < -minVelocity && direcao != Direcao.CIMA) {
-            direcao = Direcao.BAIXO;
-        }
-
-        return true;
-    }
 
     private void limparTela() {
         Gdx.gl.glClearColor(.29f, .894f, .373f, 1);
@@ -181,9 +206,9 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
         pixmap2.dispose();
 
         Pixmap pixmap3 = new Pixmap(64, 64, Pixmap.Format.RGBA8888);
-        pixmap.setColor(1f, 1f, 1f, 1f);
+        pixmap3.setColor(1f, 1f, 1f, 1f);
         pixmap3.fillCircle(32, 32, 32);
-        texPonto = new Texture(pixmap3);
+        texComida = new Texture(pixmap3);
         pixmap3.dispose();
     }
 
@@ -199,6 +224,46 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
         direcao = Direcao.DIREITA;
 
         tempoParaMover = TEMPO_MOVER_PADRAO;   //a cada 0,4 segundos, a snake se movimenta.
+        tempoParaAdicionarComida = TEMPO_ADICIONAR_COMIDA_INICIAL_PADRAO;
+
+        comidas = new Array<Vector2>();
+        estado = JOGANDO;
+    }
+
+    @Override
+    public boolean fling(float velocityX, float velocityY, int button) {
+        toque.set(velocityX, velocityY);
+        viewport.unproject(toque);
+        Gdx.app.log("Log", velocityX + " " + velocityY + " " + toque.x + " " + toque.y);
+
+        if (estado != JOGANDO)
+            return false;
+
+        if (Math.abs(toque.x) > Math.abs(toque.y))
+            toque.y = 0;
+        else
+            toque.x = 0;
+
+        final int minVelocity = 50;
+        if (toque.x > minVelocity && direcao != Direcao.ESQUERDA) {
+            direcao = Direcao.DIREITA;
+        } else if (toque.y > minVelocity && direcao != Direcao.BAIXO) {
+            direcao = Direcao.CIMA;
+        } else if (toque.x < -minVelocity && direcao != Direcao.DIREITA) {
+            direcao = Direcao.ESQUERDA;
+        } else if (toque.y < -minVelocity && direcao != Direcao.CIMA) {
+            direcao = Direcao.BAIXO;
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean tap(float x, float y, int count, int button) {
+        if (estado == PERDEU)
+            game.setScreen(new MainScreen(game));
+
+        return true;
     }
 
     @Override
@@ -223,11 +288,6 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
 
     @Override
     public boolean touchDown(float x, float y, int pointer, int button) {
-        return false;
-    }
-
-    @Override
-    public boolean tap(float x, float y, int count, int button) {
         return false;
     }
 
