@@ -2,6 +2,9 @@ package net.diegoqueres.mysnake;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
@@ -9,12 +12,14 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.input.GestureDetector;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
 import net.diegoqueres.mysnake.enums.Direcao;
 import net.diegoqueres.mysnake.enums.Estado;
+import net.diegoqueres.mysnake.utils.DeviceUtils;
 
 import static net.diegoqueres.mysnake.Constants.IDX_CABECA_COBRA;
 import static net.diegoqueres.mysnake.Constants.TEMPO_ADICIONAR_COMIDA_INICIAL_PADRAO;
@@ -25,7 +30,7 @@ import static net.diegoqueres.mysnake.enums.Estado.JOGANDO;
 
 import java.util.Random;
 
-public class GameScreen implements Screen, GestureDetector.GestureListener {
+public class GameScreen implements Screen, GestureDetector.GestureListener, InputProcessor {
 
     private Game game;
 
@@ -68,7 +73,10 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
         toque = new Vector2();
         rand = new Random();
 
-        Gdx.input.setInputProcessor(new GestureDetector(this));
+        if (DeviceUtils.isMobileDevice())
+            Gdx.input.setInputProcessor(new GestureDetector(this));
+        else
+            Gdx.input.setInputProcessor(this);
     }
 
     @Override
@@ -259,6 +267,27 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
     }
 
     @Override
+    public boolean keyDown(int keycode) {
+        if (estado != JOGANDO) {
+            if (estado == PERDEU)
+                game.setScreen(new MainScreen(game));
+        } else {
+            final int minVelocity = 50;
+            if (keycode == Input.Keys.DPAD_RIGHT && direcao != Direcao.ESQUERDA) {
+                direcao = Direcao.DIREITA;
+            } else if (keycode == Input.Keys.DPAD_UP && direcao != Direcao.BAIXO) {
+                direcao = Direcao.CIMA;
+            } else if (keycode == Input.Keys.DPAD_LEFT && direcao != Direcao.DIREITA) {
+                direcao = Direcao.ESQUERDA;
+            } else if (keycode == Input.Keys.DPAD_DOWN && direcao != Direcao.CIMA) {
+                direcao = Direcao.BAIXO;
+            }
+        }
+
+        return true;
+    }
+
+    @Override
     public boolean tap(float x, float y, int count, int button) {
         if (estado == PERDEU)
             game.setScreen(new MainScreen(game));
@@ -283,13 +312,12 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
 
     @Override
     public void dispose() {
-
+        batch.dispose();
+        texCorpo.dispose();
+        texFundo.dispose();
+        texComida.dispose();
     }
 
-    @Override
-    public boolean touchDown(float x, float y, int pointer, int button) {
-        return false;
-    }
 
     @Override
     public boolean longPress(float x, float y) {
@@ -319,5 +347,45 @@ public class GameScreen implements Screen, GestureDetector.GestureListener {
     @Override
     public void pinchStop() {
 
+    }
+
+    @Override
+    public boolean keyUp(int keycode) {
+        return false;
+    }
+
+    @Override
+    public boolean keyTyped(char character) {
+        return false;
+    }
+
+    @Override
+    public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+        return false;
+    }
+
+    @Override
+    public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        return false;
+    }
+
+    @Override
+    public boolean touchDragged(int screenX, int screenY, int pointer) {
+        return false;
+    }
+
+    @Override
+    public boolean mouseMoved(int screenX, int screenY) {
+        return false;
+    }
+
+    @Override
+    public boolean scrolled(float amountX, float amountY) {
+        return false;
+    }
+
+    @Override
+    public boolean touchDown(float x, float y, int pointer, int button) {
+        return false;
     }
 }
